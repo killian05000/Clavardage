@@ -5,11 +5,13 @@ import java.util.Set;
 import java.util.Iterator;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.nio.channels.SelectionKey;
 
 class MultiSaloon {
 
     /* Démarrage et délégation des connexions entrantes */
     public void demarrer(int port) {
+
         ServerSocketChannel serv_socket; // socket d'écoute utilisée par le serveur
 
         System.out.println("Lancement du serveur sur le port " + port);
@@ -40,27 +42,26 @@ class MultiSaloon {
                     if(key.isAcceptable())
                     {
                         SocketChannel client = serv_socket.accept();
-
-                        buffer = ByteBuffer.allocate(128);
-                        client.read(buffer);
-                        buffer.flip();
-                        int len = buffer.remaining();
-                        String pseudo = "defaultPseudo";
-                        if(len > 0)
-                            pseudo = new String(buffer.array());
-                        buffer.clear();
-
-                        clients_Map.put(client, pseudo);
-
+                        Data data = new Data();
                         client.configureBlocking(false);
-                        client.register(selector, SelectionKey.OP_READ);
+                        client.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, data);
                     }
                     if(key.isReadable())
                     {
+                        Data data = new Data();
+                        data = key.attachment();
                         SocketChannel client = (SocketChannel) key.channel();
                         buffer = ByteBuffer.allocate(128);
                         client.read(buffer);
                         buffer.flip();
+                        data.checkConnection(new String(buffer.array()));
+                        if(data.connectionAccepted)
+                        {
+                            String temp = new String(buffer.array());
+                            String pseudo = temp.substring(7);
+                            clients_Map.put(client, pseudo);
+                        }
+                        buffer.clear();
                         int len = buffer.remaining();
                         if(len > 0)
                             System.out.println(clients_Map.get(client)+">"+new String(buffer.array()));
@@ -69,6 +70,10 @@ class MultiSaloon {
                     if(key.isWritable())
                     {
                         SocketChannel client = (SocketChannel) key.channel();
+                        buffer = ByteBuffer.allocate(128);
+                        String msg = "truc";
+                        buffer = msg.getBytes();
+                        client.write(msg);
                     }
                 }
             }
