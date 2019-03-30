@@ -6,7 +6,7 @@ public class Data
     {
         if(connect.substring(0,6)=="CONNECT")
         {
-            if(connect.length()>8);
+            if(connect.length()>8)
                 connectionAccepted=true;
         }
 

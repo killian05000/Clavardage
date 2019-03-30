@@ -49,7 +49,7 @@ public class Saloon
                 int len = in.read(data);
                 if(len > 0)
                 {
-                    msg = pseudo+">" + new String(data, 0, len);
+                    msg = pseudo+">" + new String(data, 0, len)+"\n";
                     System.out.print(msg);
                 }
             } while(clientSocket.isConnected());
