@@ -94,14 +94,21 @@ class SalonCentral
       try
       {
         tampon = in.readLine();
+        System.out.println("1");
         String[] lign = tampon.split("\\s+");
+        System.out.println("2");
 
         if(!lign[0].equals("CONNECT") || lign.length==1)
         {
+          System.out.println("3");
           out.println("ERROR CONNECT aborting clavardamu protocol.");
+          System.out.println("4");
           socket.close();
+          System.out.println("5");
           return;
         }
+
+        System.out.println("6");
 
         pseudo = lign[1];
 
