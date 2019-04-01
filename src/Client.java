@@ -3,10 +3,15 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.InputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Client
 {
-    public static void main( String[] args )
+    public static void main( String[] args ) throws Exception
     {
       InetAddress addr;
       int port;
@@ -27,6 +32,10 @@ public class Client
 
 
         System.out.println("Connected to server");
+        Handler ch = new Handler(sock);
+        ExecutorService pool = Executors.newCachedThreadPool();
+        pool.execute(ch);
+
 
         do
         {
@@ -41,6 +50,37 @@ public class Client
       } catch (IOException e)
       {
           e.printStackTrace();
+      }
+    }
+
+
+    static class Handler implements Runnable
+    {
+      Socket socket;
+      BufferedReader in;
+
+      Handler(Socket socket) throws IOException
+      {
+        this.socket = socket;
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+      }
+
+      public void run()
+      {
+        String tampon;
+        long compteur = 0;
+
+        try
+        {
+          do {
+              tampon = in.readLine();
+              if(tampon != null)
+              System.out.println(tampon);
+          } while (socket.isConnected());
+        } catch (Exception e)
+        {
+          e.printStackTrace();
+        }
       }
     }
 }

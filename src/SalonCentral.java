@@ -8,15 +8,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.lang.Exception;
+import java.util.ArrayList;
 
 class SalonCentral
 {
-
+  ArrayList<Handler> tabHandler = new ArrayList<Handler>();
   /* Démarrage et délégation des connexions entrantes */
   public void demarrer(int port) throws Exception
   {
     ServerSocket serv_socket; // socket d'écoute utilisée par le serveur
     Socket cli_socket;
+
 
     System.out.println("Lancement du serveur sur le port " + port);
     try
@@ -30,6 +32,7 @@ class SalonCentral
 	       //(new Handler(serv_socket.accept())).run();
          cli_socket = serv_socket.accept();
          Handler ch = new Handler(cli_socket);
+         tabHandler.add(ch);
          pool.execute(ch);
       }
     } catch (IOException ex)
@@ -74,7 +77,7 @@ class SalonCentral
     BufferedReader in;
     InetAddress hote;
     int port;
-    String pseudo;
+    String pseudo="unknown";
 
     Handler(Socket socket) throws IOException
     {
@@ -94,23 +97,19 @@ class SalonCentral
       try
       {
         tampon = in.readLine();
-        System.out.println("1");
         String[] lign = tampon.split("\\s+");
-        System.out.println("2");
 
         if(!lign[0].equals("CONNECT") || lign.length==1)
         {
-          System.out.println("3");
           out.println("ERROR CONNECT aborting clavardamu protocol.");
-          System.out.println("4");
+          String mendiant = "Un mendiant a essayé de s'introduire dans le chateau, n'ayez craintes, nos gardes l'on repoussé";
+          sendAll(mendiant, true);
           socket.close();
-          System.out.println("5");
           return;
         }
 
-        System.out.println("6");
-
         pseudo = lign[1];
+        System.out.println(pseudo+" vient de se connecter");
 
         do
         {
@@ -122,7 +121,8 @@ class SalonCentral
             /* log */
             System.out.println("["+pseudo+"]: " + tampon);
             /* echo vers le client */
-            out.println(pseudo+"> " + tampon);
+            sendAll(tampon, false);
+            out.println(">msg send");
           } else
           {
             break;
@@ -137,11 +137,32 @@ class SalonCentral
           out.close();
           socket.close();
 
-          System.err.println("[" + hote + ":" + port + "]: Terminé...");
+          System.err.println(pseudo+" nous a quitté... [server message]");
         }
       } catch (Exception e)
       {
         e.printStackTrace();
+      }
+    }
+
+    public void sendAll(String msg, boolean selfsend)
+    {
+      if(selfsend==true)
+      {
+        for(int i=0; i< tabHandler.size(); i++)
+        {
+          if(pseudo != "unknown")
+            tabHandler.get(i).out.println(pseudo+"> "+msg);
+        }
+      }
+      else
+      {
+        for(int i=0; i< tabHandler.size(); i++)
+        {
+          if(tabHandler.get(i).pseudo != pseudo && pseudo != "unknown")
+            tabHandler.get(i).out.println(pseudo+"> "+msg);
+          System.out.println(tabHandler.get(i).pseudo);
+        }
       }
     }
   }
