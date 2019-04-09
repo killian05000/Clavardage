@@ -1,14 +1,10 @@
 import java.net.*;
 import java.util.concurrent.*;
 import java.io.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.lang.Exception;
 import java.util.ArrayList;
+import java.util.Scanner;
+import java.util.concurrent.ArrayBlockingQueue;
 
 class SalonCentral
 {
@@ -65,6 +61,29 @@ class SalonCentral
     return;
   }
 
+  public void clientSendAll(String pseudo, String msg)
+  {
+      for(int i=0; i< tabHandler.size(); i++)
+      {/*
+        if(tabHandler.get(i).pseudo != pseudo && tabHandler.get(i).pseudo != null)
+          tabHandler.get(i).out.println(pseudo+"> "+msg);
+          */
+          if(tabHandler.get(i).pseudo != null)
+          {
+            tabHandler.get(i).out.println(pseudo+"> "+msg);
+          }
+      }
+  }
+
+  public void serverSendAll(String msg)
+  {
+      for(int i=0; i< tabHandler.size(); i++)
+      {
+        if(tabHandler.get(i).pseudo != null)
+          tabHandler.get(i).out.println("[server] : "+msg);
+      }
+  }
+
   /*
      echo des messages reçus (le tout via la socket).
      NB classe Runnable : le code exécuté est défini dans la
@@ -72,21 +91,33 @@ class SalonCentral
   */
   class Handler implements Runnable
   {
-    Socket socket;
+
+    ArrayBlockingQueue<String> queue;
+
+    //Socket socket;
     PrintWriter out;
     BufferedReader in;
-    InetAddress hote;
+    //InetAddress hote;
+    //int port;
+    //String pseudo;
+    Socket sock;
+    InetAddress addr;
     int port;
-    String pseudo="unknown";
+    String pseudo;
 
     Handler(Socket socket) throws IOException
     {
-      this.socket = socket;
+	queue = new ArrayBlockingQueue<String>(10);
+      sock = socket;
+      addr = socket.getInetAddress();
+      port = socket.getPort();
+
+      //this.socket = socket;
       out = new PrintWriter(socket.getOutputStream(), true);
       in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-      hote = socket.getInetAddress();
-      port = socket.getPort();
+      //hote = socket.getInetAddress();
+      //port = socket.getPort();
     }
 
     public void run()
@@ -102,14 +133,17 @@ class SalonCentral
         if(!lign[0].equals("CONNECT") || lign.length==1)
         {
           out.println("ERROR CONNECT aborting clavardamu protocol.");
+          System.out.println("--connection attempt failed--");
           String mendiant = "Un mendiant a essayé de s'introduire dans le chateau, n'ayez craintes, nos gardes l'on repoussé";
-          sendAll(mendiant, true);
-          socket.close();
+          serverSendAll(mendiant);
+          sock.close();
           return;
         }
 
         pseudo = lign[1];
         System.out.println(pseudo+" vient de se connecter");
+        out.println("--Accepted by server--");
+        serverSendAll(pseudo+" vient de se connecter");
 
         do
         {
@@ -121,8 +155,8 @@ class SalonCentral
             /* log */
             System.out.println("["+pseudo+"]: " + tampon);
             /* echo vers le client */
-            sendAll(tampon, false);
-            out.println(">msg send");
+            clientSendAll(pseudo, tampon);
+            //out.println(">msg send");
           } else
           {
             break;
@@ -130,39 +164,18 @@ class SalonCentral
         } while (true);
 
         /* le correspondant a quitté */
-        if(!socket.isClosed())
+        if(!sock.isClosed())
         {
           in.close();
           out.println("Fermeture de connexion");
           out.close();
-          socket.close();
-
-          System.err.println(pseudo+" nous a quitté... [server message]");
+          sock.close();
+          serverSendAll(pseudo+" nous a quitté...");
+          System.err.println(pseudo+" nous a quitté...");
         }
       } catch (Exception e)
       {
         e.printStackTrace();
-      }
-    }
-
-    public void sendAll(String msg, boolean selfsend)
-    {
-      if(selfsend==true)
-      {
-        for(int i=0; i< tabHandler.size(); i++)
-        {
-          if(pseudo != "unknown")
-            tabHandler.get(i).out.println(pseudo+"> "+msg);
-        }
-      }
-      else
-      {
-        for(int i=0; i< tabHandler.size(); i++)
-        {
-          if(tabHandler.get(i).pseudo != pseudo && pseudo != "unknown")
-            tabHandler.get(i).out.println(pseudo+"> "+msg);
-          System.out.println(tabHandler.get(i).pseudo);
-        }
       }
     }
   }

@@ -8,13 +8,21 @@ import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ArrayBlockingQueue;
 
 public class Client
 {
-    public static void main( String[] args ) throws Exception
+    //ArrayBlockingQueue<String> receivingQueue = new ArrayBlockingQueue<String>(10);
+    Socket sock;
+    InetAddress addr;
+    int port;
+    BufferedOutputStream bos;
+    Scanner input;
+    String pseudo;
+
+
+    public void start( String[] args ) throws Exception
     {
-      InetAddress addr;
-      int port;
       try
       {
         if (args.length == 2)
@@ -26,9 +34,9 @@ public class Client
             System.err.println("serveur et/ou port manquant");
             return;
         }
-        Socket sock = new Socket(addr, port);
-        BufferedOutputStream bos = new BufferedOutputStream(sock.getOutputStream());
-        Scanner input = new Scanner(System.in);
+        sock = new Socket(addr, port);
+        bos = new BufferedOutputStream(sock.getOutputStream());
+        input = new Scanner(System.in);
 
 
         System.out.println("Connected to server");
@@ -37,12 +45,19 @@ public class Client
         pool.execute(ch);
 
 
-        do
+        while (input.hasNextLine() && !sock.isClosed())
         {
           byte[] line = (input.nextLine() + "\n").getBytes();
           bos.write(line);
           bos.flush();
-        } while (input.hasNextLine());
+          if(sock.isOutputShutdown())
+          {
+            System.out.println("outpt shutdown");
+            input.close();
+            bos.close();
+            sock.close();
+          }
+        }
 
         input.close();
         bos.close();
@@ -50,33 +65,46 @@ public class Client
       } catch (IOException e)
       {
           e.printStackTrace();
+          System.exit(1);
       }
     }
 
 
-    static class Handler implements Runnable
+
+    public class Handler implements Runnable
     {
-      Socket socket;
+      Socket sock;
       BufferedReader in;
+      //Client cli;
 
       Handler(Socket socket) throws IOException
       {
-        this.socket = socket;
+        //System.out.println("TA MERE JAVA");
+        sock = socket;
+        //System.out.println("TA MERE JAVA 2");
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
       }
 
       public void run()
       {
-        String tampon;
         long compteur = 0;
 
         try
         {
           do {
-              tampon = in.readLine();
+        	  String tampon = in.readLine();
+              //System.out.println("reseau fdp");
+
               if(tampon != null)
-              System.out.println(tampon);
-          } while (socket.isConnected());
+                System.out.println(tampon);;
+                if(tampon=="ERROR CONNECT aborting clavardamu protocol.")
+                {
+                  sock.shutdownOutput();
+                  sock.shutdownInput();
+                  sock.close();
+                }
+          } while (compteur==0);
+          sock.close();
         } catch (Exception e)
         {
           e.printStackTrace();
